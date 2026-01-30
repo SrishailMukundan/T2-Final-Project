@@ -14,7 +14,7 @@ print("\nGenerating word by word...\n")
 
 # Generate 5 words, one at a time
 current_text = text
-for step in range(20):
+for step in range(30):
     print(f"--- Step {step + 1} ---")
     print(f"Current: '{current_text}'")
     
@@ -46,5 +46,6 @@ for step in range(20):
     
     print(f"✓ Chosen: '{next_word}'")
     print(f"New text: '{current_text}'\n")
+
 
 print(f"\nFinal generated text: '{current_text}'")
