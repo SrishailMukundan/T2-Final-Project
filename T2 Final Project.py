@@ -1,51 +1,55 @@
-from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
+import re
+import random
 
 # Load model
 print("Loading AI model...")
 model_name = "distilgpt2"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name)
+temperature = 1.1
 
-# Simple example 
-text = "The quick brown fox jumped over the lazy dog. The moment was" 
-print(f"\nStarting text: '{text}'")
-print("\nGenerating word by word...\n")
+#Changed the prompt to help the model to predict the next words. Does not always rhyme but it works some of the time. 
+start = "Write a short rhyming poem about a peaceful day:\nA calm and pleasant day it was,"
+current_text = start
 
-# Generate 5 words, one at a time
-current_text = text
-for step in range(30):
-    print(f"--- Step {step + 1} ---")
-    print(f"Current: '{current_text}'")
-    
-    # Encode current text
-    input_ids = tokenizer.encode(current_text, return_tensors="pt")
-    
-    # Get predictions
-    with torch.no_grad():
-        outputs = model(input_ids)
-        predictions = outputs.logits
-    
-    # Get the predictions for the NEXT token
-    next_token_logits = predictions[0, -1, :]
-    probs = torch.softmax(next_token_logits, dim=-1)
-    # Get top 5 predictions (changed 5 to 3)
-    top_probs, top_indices = torch.topk(probs, 3)
-    
-    print("Top 3 next word predictions:")
-    for i, (prob, idx) in enumerate(zip(top_probs, top_indices)):
-        word = tokenizer.decode([idx])
-        print(f"  {i+1}. '{word}' ({prob.item()*100:.1f}% confident)")
-    
-    # Use the most likely word --> Changed to sample using topk instead
-    sampled_idx = torch.multinomial(top_probs, 1)
-    next_token_id = top_indices[sampled_idx].item()
+sentences = random.randint(4,6)
 
-    next_word = tokenizer.decode([next_token_id])
-    current_text += next_word
-    
-    print(f"✓ Chosen: '{next_word}'")
-    print(f"New text: '{current_text}'\n")
+poem = 'A calm and pleasant day it was,' + '\n'
 
+for i in range(sentences):
+    words = random.randint(4,7)
+    line = ""
+    j=0
+    attempts = 0
+    while j < words:
+        input = tokenizer.encode(current_text, return_tensors="pt")
 
-print(f"\nFinal generated text: '{current_text}'")
+        with torch.no_grad():
+            outputs = model(input)
+            predictions = outputs.logits
+
+         # Get the predictions for the NEXT token
+        next_token_logits = predictions[0, -1, :]
+        probs = torch.softmax(next_token_logits/temperature, dim=-1)
+        top_probs, top_indices = torch.topk(probs, 50)
+
+        sampled_idx = torch.multinomial(top_probs, 1)
+        next_token_id = top_indices[sampled_idx].item()
+
+        word = tokenizer.decode(next_token_id, skip_special_tokens=True).strip()
+        attempts = 0
+        if not re.search(r'\w', word):  # keep letters/numbers
+            if attempts > 5:  # fallback after 5 tries
+                continue  # accept even if it’s a fragment
+            continue
+
+        line += ' ' + word
+        current_text += ' ' + word
+        j+=1
+    poem += line + '\n'
+    current_text += "\n"
+    line = ""
+
+print(poem)
